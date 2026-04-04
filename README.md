@@ -1,95 +1,62 @@
-# eYcel 🔐📊
+# eYcel 🔐
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
-![Status](https://img.shields.io/badge/Status-In%20Development-orange.svg)
+> **Excel Data Anonymization & Encryption Tool**
+> Transform sensitive Excel data into anonymized versions — safe to share with AI models, third parties, or public environments — while preserving all formulas and structure.
 
-> **eYcel** — Excel + Anonymize + Encrypt.  
-> Transform sensitive Excel data into anonymized versions that preserve formulas, structure, and intelligence — while making the actual values unintelligible.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platform: Win/Mac/Linux](https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey.svg)]()
 
 ---
 
-## 🎯 What is eYcel?
+## 🧠 Why eYcel?
 
-eYcel is a lightweight Python tool that lets you safely share or process sensitive Excel files with external systems (like LLMs/GPT) by anonymizing the data while keeping all formulas intact.
+When working with AI tools like ChatGPT, you often need to share your data to get help with formulas, analysis, or logic — but your data may be **confidential** (financial records, customer data, HR data, etc.).
 
-It produces two outputs:
-- `encrypted.xlsx` — anonymized data with all formulas preserved
-- `rules.yaml` — the decryption key (transformation rules), containing **zero original data**
+**eYcel solves this:**
+1. You encrypt your Excel file → data becomes meaningless to outsiders
+2. You send the encrypted file to GPT → GPT builds formulas/algorithms on the anonymized structure
+3. You apply GPT's output to your **real** data using the rules file
+4. Or you decrypt the result back to original values
+
+All formulas are **preserved exactly** throughout this process.
 
 ---
 
 ## 🔄 Core Workflow
 
 ```
-┌─────────────────┐     eYcel encrypt     ┌──────────────────────┐
-│  Clean Excel    │ ──────────────────►   │  encrypted.xlsx      │
-│  (sensitive)    │                       │  rules.yaml          │
-└─────────────────┘                       └──────────┬───────────┘
-                                                     │
-                                          Send encrypted.xlsx only
-                                                     │
-                                                     ▼
-                                          ┌──────────────────────┐
-                                          │   LLM / GPT          │
-                                          │  (generates formula  │
-                                          │   or algorithm)      │
-                                          └──────────┬───────────┘
-                                                     │
-                                          Apply result to clean data
-                                                     │
-                                                     ▼
-┌─────────────────┐     eYcel decrypt     ┌──────────────────────┐
-│  Restored Excel │ ◄──────────────────   │  encrypted.xlsx      │
-│  (original data)│                       │  rules.yaml          │
-└─────────────────┘                       └──────────────────────┘
+┌─────────────────┐     encrypt      ┌──────────────────────┐
+│  original.xlsx  │ ───────────────► │  encrypted.xlsx      │  ← safe to share
+│  (sensitive)    │                  │  + rules.yaml        │  ← keep this secret
+└─────────────────┘                  └──────────────────────┘
+                                              │
+                                     share encrypted.xlsx
+                                              │
+                                              ▼
+                                       GPT / Analysis
+                                              │
+                                     get formulas/results
+                                              │
+                                              ▼
+┌─────────────────┐     decrypt      ┌──────────────────────┐
+│  restored.xlsx  │ ◄─────────────── │  result.xlsx         │
+│  (original)     │                  │  + rules.yaml        │
+└─────────────────┘                  └──────────────────────┘
 ```
 
 ---
 
-## ✨ Features
+## ⚡ Quick Install
 
-### 🔒 Encryption Module
-- Auto-detects column data types: `date`, `float`, `int`, `%`, `string`, `formula`
-- Per-column transformation rules:
-  - **Keep** — non-sensitive columns pass through unchanged
-  - **Hash** — one-way deterministic transformation for IDs
-  - **Offset** — shift dates or numbers by a random delta
-  - **Anonymize** — replace values with type-consistent random data
-  - **Shuffle** — reorder categorical values
-  - **Rename** — systematically rename categories
-- Preserves ALL Excel formulas exactly
-- Generates `rules.yaml` — the decryption key
-
-### 🔓 Decryption Module
-- Ingests `encrypted.xlsx` + `rules.yaml`
-- Reverses all transformations
-- Restores original data perfectly
-- Verifies formula integrity after restoration
-
-### ⚡ Performance
-- Memory usage: **< 50MB for 100k rows**
-- Chunk processing for large files
-- No pandas dependency in core engine
-- Streaming / generator-based architecture
-
----
-
-## 🚀 Installation
-
-### Option 1 — pipx (recommended, isolated)
 ```bash
-pipx install eYcel
-```
-
-### Option 2 — pip
-```bash
+# Option 1 — pip (recommended)
 pip install eYcel
-```
 
-### Option 3 — from source
-```bash
+# Option 2 — pipx (isolated, any machine)
+pipx install eYcel
+
+# Option 3 — from source
 git clone https://github.com/VoicuTomut/eYcel.git
 cd eYcel
 pip install -e .
@@ -97,165 +64,137 @@ pip install -e .
 
 ---
 
-## 📖 Quick Start
+## 🚀 Usage
 
-### Encrypt a file
+### Command Line
 ```bash
-eYcel encrypt input.xlsx
-# Output: input_encrypted.xlsx + input_rules.yaml
+# Encrypt
+eYcel encrypt --input sales_data.xlsx --output encrypted.xlsx
+
+# Decrypt
+eYcel decrypt --input encrypted.xlsx --rules rules.yaml --output restored.xlsx
+
+# Validate rules file
+eYcel validate --rules rules.yaml
 ```
 
-### Decrypt a file
-```bash
-eYcel decrypt input_encrypted.xlsx input_rules.yaml
-# Output: input_restored.xlsx
-```
-
-### Validate a rules file
-```bash
-eYcel validate input_rules.yaml
-```
-
-### Interactive mode (choose rules per column)
-```bash
-eYcel encrypt input.xlsx --interactive
-```
-
-### Batch mode (supply rules via config)
-```bash
-eYcel encrypt input.xlsx --rules my_config.yaml --quiet
-```
-
----
-
-## 🐍 Python API
-
+### Python API
 ```python
 from eYcel import encrypt_excel, decrypt_excel
 
 # Encrypt
-encrypt_excel(
-    input_path="sales_data.xlsx",
-    output_path="sales_encrypted.xlsx",
-    rules_path="sales_rules.yaml"
-)
+encrypt_excel("sales_data.xlsx", "encrypted.xlsx")
+# → produces encrypted.xlsx + rules.yaml
 
 # Decrypt
-decrypt_excel(
-    input_path="sales_encrypted.xlsx",
-    rules_path="sales_rules.yaml",
-    output_path="sales_restored.xlsx"
-)
+decrypt_excel("encrypted.xlsx", "rules.yaml", "restored.xlsx")
 ```
 
 ---
 
-## 📁 Project Structure
+## 📦 What Gets Generated
 
-```
-eYcel/
-├── src/
-│   └── eYcel/
-│       ├── __init__.py
-│       ├── cli.py               # CLI entry point (click)
-│       ├── encrypt.py           # Encryption module
-│       ├── decrypt.py           # Decryption module
-│       ├── column_analyzer.py   # Data type detection
-│       ├── transformations.py   # Transform logic
-│       ├── formula_handler.py   # Formula preservation
-│       └── yaml_handler.py      # Rules file I/O
-├── tests/
-│   ├── test_encrypt.py
-│   ├── test_decrypt.py
-│   ├── test_formulas.py
-│   ├── test_transformations.py
-│   └── test_integration.py
-├── examples/
-│   └── sample_data.xlsx
-├── .env.example
-├── .gitignore
-├── pyproject.toml
-├── requirements.txt
-├── ProjectBuildingPlan.md
-└── README.md
-```
+### `encrypted.xlsx`
+- All **formulas preserved** exactly as-is
+- All **data values** transformed (anonymized)
+- Same structure, same sheet names, same column layout
 
----
-
-## 🔐 rules.yaml — What it looks like
-
+### `rules.yaml`
 ```yaml
 metadata:
   original_filename: sales_data.xlsx
-  encryption_timestamp: "2024-01-15T14:30:00Z"
-  eycel_version: "1.0.0"
+  timestamp: "2024-01-15T14:30:00Z"
 
 columns:
   customer_id:
-    transformation: hash
-    algorithm: sha256
-    salt: "a1b2c3d4"
+    transform: hash
+    salt: "a1b2c3..."
 
   transaction_date:
-    transformation: offset
+    transform: offset
     offset_days: -45
 
   amount:
-    transformation: anonymize
-    method: random_range
-    min: 100
-    max: 10000
+    transform: scale
+    factor: 0.73
 
   category:
-    transformation: shuffle
+    transform: shuffle
     mapping:
       Electronics: Cat_A
       Clothing: Cat_B
 
   profit_formula:
-    transformation: keep
-    is_formula: true
+    transform: keep        # formulas always kept
 ```
 
-> ⚠️ The rules file contains **zero original data values** — only transformation metadata.
+> ⚠️ **The rules file is your decryption key — keep it safe and never share it.**
 
 ---
 
-## 🎯 Use Cases
+## 🔧 Supported Transformations
 
-| Use Case | Description |
-|----------|-------------|
-| 🤖 **LLM / GPT Data Prep** | Send anonymized data to AI models safely |
-| 🔏 **GDPR / HIPAA Compliance** | Share data without exposing PII |
-| 🧪 **Test Environments** | Use realistic but anonymous data in dev/test |
-| 🤝 **Third-party Sharing** | Share business data with partners safely |
-| 📊 **Formula Preservation** | AI generates formulas on anonymized data — apply to real data |
+| Type | Description | Best For |
+|------|-------------|----------|
+| `hash` | One-way SHA256 hash | IDs, names |
+| `offset` | Shift dates/numbers by fixed amount | Dates, timestamps |
+| `scale` | Multiply numbers by a secret factor | Amounts, prices |
+| `shuffle` | Rename categories systematically | Dropdowns, labels |
+| `keep` | No transformation | Non-sensitive columns |
+| `anonymize` | Replace with realistic fake values | Mixed types |
+
+---
+
+## 🗂️ Project Structure
+
+```
+eYcel/
+├── src/eYcel/
+│   ├── __init__.py
+│   ├── encrypt.py          # Encryption pipeline
+│   ├── decrypt.py          # Decryption pipeline
+│   ├── formula_handler.py  # Formula preservation logic
+│   ├── column_analyzer.py  # Data type detection
+│   └── yaml_handler.py     # Rules file read/write
+├── tests/
+│   ├── test_encrypt.py
+│   ├── test_decrypt.py
+│   ├── test_formulas.py
+│   └── test_integration.py
+├── examples/
+│   └── sample_data.xlsx
+├── eYcel_cli.py            # CLI entry point
+├── setup.py
+├── requirements.txt
+├── .env.example
+└── ProjectBuildingPlan.md
+```
 
 ---
 
 ## 🛠️ Requirements
 
 - Python 3.9+
-- openpyxl >= 3.1.0
-- PyYAML >= 6.0
-- click >= 8.0
+- openpyxl ≥ 3.1.0
+- PyYAML ≥ 6.0
+
+No heavy dependencies. No pandas. Runs on any machine.
 
 ---
 
-## 🤝 Contributing
+## 🔐 Security Notes
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Run tests: `pytest tests/`
-4. Submit a pull request
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+- The **rules file contains zero original data** — only transformation metadata
+- Hashing uses a random salt per session (deterministic within a session)
+- Original file is **never modified** — all output goes to new files
+- Works fully offline — no data ever leaves your machine
 
 ---
 
-*eYcel: Where Excel data keeps its structure but loses its secrets.* 🔐
+## 📋 License
+
+MIT — free to use, modify, and distribute.
+
+---
+
+*eYcel: Your data keeps its structure. Its secrets stay yours.*
