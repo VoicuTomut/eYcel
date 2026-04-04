@@ -9,10 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - PyPI publication and package distribution
-- Cross-platform CI testing (Windows, macOS, Linux)
-- Improved test coverage to ≥80%
-- Development tooling (flake8, twine) installation
-- Documentation updates and example improvements
+- Enhanced GUI features (batch processing, custom rules editor)
+- Support for Excel macros (VBA) preservation
+- Performance optimizations for very large files
+
+## [0.2.0] - 2026-04-05
+
+### Added
+- **Comprehensive CLI test coverage**: 100% coverage of `cli.py` module
+- **Exception module tests**: Full coverage of `exceptions.py`
+- **Enhanced memory utilities tests**: Additional edge‑case coverage for `memory_utils.py`
+
+### Changed
+- **Version bump**: Updated `__version__` to 0.2.0
+- **Code quality**: Applied flake8 linting with max‑line‑length=100
+- **Removed unused imports** (`os`, `Optional`, `column_index_from_string`, `get_column_letter`, `validate_rules`)
+- **Fixed line‑length violations** in `column_analyzer.py`, `encrypt.py`, `transformations.py`
+- **Eliminated unused variables** (`max_col`, `unique_vals`)
+
+### Fixed
+- **Import consistency**: Restored missing `column_index_from_string` import in `encrypt.py`
+- **Whitespace cleanup**: Trailing whitespace in split line
+
+### Metrics
+- **Test count**: 196 passed (up from 154)
+- **Coverage**: 92% (up from 71%)
+- **Linting**: Zero flake8 violations
 
 ## [0.1.0] - 2026-04-04
 

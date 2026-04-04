@@ -19,7 +19,7 @@ Preserve formulas while anonymizing sensitive data in Excel spreadsheets. Perfec
 - 📋 **Rules-Based Decryption** — Separate rules file ensures original data never leaks
 - 🚀 **CLI & Python API** — Use from command line or integrate into your Python workflows
 - 💾 **Memory Efficient** — Process large files without loading everything into memory
-- 🧪 **Fully Tested** — 119 tests, 80%+ coverage
+- 🧪 **Fully Tested** — 196 tests, 92% coverage
 
 ---
 
@@ -37,27 +37,10 @@ pip install eYcel
 ```bash
 git clone https://github.com/VoicuTomut/eYcel.git
 cd eYcel
-pip install -e .
-
-# With development dependencies
 pip install -e ".[dev]"
 ```
 
-
-
-```bash
-pip install eYcel
-```
-
-### Development Install
-
-```bash
-git clone https://github.com/VoicuTomut/eYcel.git
-cd eYcel
-pip install -e ".[dev]"
-```
-
-> **Note:** PyPI release (`pip install eYcel`) is coming soon.
+**Requirements:** Python 3.9+, openpyxl ≥ 3.0, PyYAML ≥ 6.0
 
 ---
 
