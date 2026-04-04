@@ -21,19 +21,27 @@ def cmd_encrypt(args: argparse.Namespace) -> int:
         print(f"ERROR: Input file not found: {input_path}", file=sys.stderr)
         return 1
     if input_path.suffix.lower() not in (".xlsx", ".xls", ".xlsm"):
-        print(f"ERROR: Input must be an Excel file (.xlsx/.xls/.xlsm): {input_path}", file=sys.stderr)
+        print(
+            (f"ERROR: Input must be an Excel file "
+             f"(.xlsx/.xls/.xlsm): {input_path}"),
+            file=sys.stderr
+        )
         return 1
 
     output_path = Path(args.output)
     if not output_path.parent.exists():
-        print(f"ERROR: Output directory does not exist: {output_path.parent}", file=sys.stderr)
+        print(
+            f"ERROR: Output directory does not exist: {output_path.parent}",
+            file=sys.stderr
+        )
         return 1
 
     try:
         rules_path = encrypt_excel(
             input_path=str(input_path),
             output_path=str(output_path),
-            rules=None,  # auto-detect; future: load from args.rules if provided
+            rules=None,  # auto-detect; future: load from args.rules
+            # if provided
         )
         if not getattr(args, "quiet", False):
             print(f"✅ Encrypted  → {output_path}")
@@ -51,13 +59,22 @@ def cmd_decrypt(args: argparse.Namespace) -> int:
     output_path = Path(args.output)
 
     if not input_path.exists():
-        print(f"ERROR: Encrypted file not found: {input_path}", file=sys.stderr)
+        print(
+            f"ERROR: Encrypted file not found: {input_path}",
+            file=sys.stderr
+        )
         return 1
     if not rules_path.exists():
-        print(f"ERROR: Rules file not found: {rules_path}", file=sys.stderr)
+        print(
+            f"ERROR: Rules file not found: {rules_path}",
+            file=sys.stderr
+        )
         return 1
     if not output_path.parent.exists():
-        print(f"ERROR: Output directory does not exist: {output_path.parent}", file=sys.stderr)
+        print(
+            f"ERROR: Output directory does not exist: {output_path.parent}",
+            file=sys.stderr
+        )
         return 1
 
     try:
@@ -88,8 +105,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
             if not getattr(args, "quiet", False):
                 cols = rules.get("columns", {})
                 meta = rules.get("metadata", {})
-                print(f"✅ Rules file is valid")
-                print(f"   Source file : {meta.get('original_filename', 'unknown')}")
+                print("✅ Rules file is valid")
+                print(
+                    f"   Source file : "
+                    f"{meta.get('original_filename', 'unknown')}"
+                )
                 print(f"   Created     : {meta.get('timestamp', 'unknown')}")
                 print(f"   Columns     : {len(cols)}")
                 for col, cfg in cols.items():
@@ -123,27 +143,52 @@ Examples:
 """,
     )
     parser.add_argument("--version", action="version", version="eYcel 0.2.0")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress output")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Verbose output"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Suppress output"
+    )
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
     subparsers.required = False
 
     # -- encrypt --
     ep = subparsers.add_parser("encrypt", help="Encrypt an Excel file")
-    ep.add_argument("-i", "--input", required=True, metavar="FILE", help="Input Excel file (.xlsx)")
-    ep.add_argument("-o", "--output", required=True, metavar="FILE", help="Output encrypted Excel file")
-    ep.add_argument("-r", "--rules", metavar="FILE", help="Pre-existing rules file (batch mode)")
+    ep.add_argument(
+        "-i", "--input", required=True, metavar="FILE",
+        help="Input Excel file (.xlsx)"
+    )
+    ep.add_argument(
+        "-o", "--output", required=True, metavar="FILE",
+        help="Output encrypted Excel file"
+    )
+    ep.add_argument(
+        "-r", "--rules", metavar="FILE",
+        help="Pre-existing rules file (batch mode)"
+    )
 
     # -- decrypt --
-    dp = subparsers.add_parser("decrypt", help="Decrypt an encrypted Excel file")
-    dp.add_argument("-i", "--input", required=True, metavar="FILE", help="Encrypted Excel file")
-    dp.add_argument("-r", "--rules", required=True, metavar="FILE", help="Rules YAML file")
-    dp.add_argument("-o", "--output", required=True, metavar="FILE", help="Output restored Excel file")
+    dp = subparsers.add_parser(
+        "decrypt", help="Decrypt an encrypted Excel file"
+    )
+    dp.add_argument(
+        "-i", "--input", required=True, metavar="FILE",
+        help="Encrypted Excel file"
+    )
+    dp.add_argument(
+        "-r", "--rules", required=True, metavar="FILE",
+        help="Rules YAML file"
+    )
+    dp.add_argument(
+        "-o", "--output", required=True, metavar="FILE", help="Output restored Excel file"
+    )
 
     # -- validate --
     vp = subparsers.add_parser("validate", help="Validate a rules YAML file")
-    vp.add_argument("-r", "--rules", required=True, metavar="FILE", help="Rules file to validate")
+    vp.add_argument(
+        "-r", "--rules", required=True, metavar="FILE", help="Rules file to validate"
+    )
 
     return parser
 

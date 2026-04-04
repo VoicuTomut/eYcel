@@ -163,7 +163,9 @@ def analyze_column(worksheet, column_letter: str) -> Dict[str, Any]:
     }
 
 
-def analyze_workbook_columns(workbook, sheet_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+def analyze_workbook_columns(
+    workbook, sheet_name: Optional[str] = None
+) -> Dict[str, Dict[str, Any]]:
     """
     Analyse every column in a worksheet and return a mapping of
     column_letter → metadata dict.

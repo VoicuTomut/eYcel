@@ -11,10 +11,10 @@ Workflow
 6. Save the restored workbook.
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import openpyxl
-from openpyxl.utils import column_index_from_string, get_column_letter
+
 
 from .formula_handler import extract_formulas, clear_formula_cells, reinject_formulas
 from .transformations import (
@@ -24,7 +24,7 @@ from .transformations import (
     reverse_shuffle,
     transform_keep,
 )
-from .yaml_handler import load_rules, validate_rules
+from .yaml_handler import load_rules
 
 
 # ---------------------------------------------------------------------------

@@ -31,7 +31,9 @@ def transform_hash(value: Any, salt: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def transform_offset_date(date_val: Union[datetime, date], offset_days: int) -> Union[datetime, date]:
+def transform_offset_date(
+    date_val: Union[datetime, date], offset_days: int
+) -> Union[datetime, date]:
     """
     Shift a date/datetime by a fixed number of days.
 
@@ -137,7 +139,9 @@ def transform_anonymize(value: Any, col_type: str, _seed: Optional[int] = None) 
 # Reverse transforms (decrypt direction)
 # ---------------------------------------------------------------------------
 
-def reverse_offset_date(encrypted_date: Union[datetime, date], offset_days: int) -> Union[datetime, date]:
+def reverse_offset_date(
+    encrypted_date: Union[datetime, date], offset_days: int
+) -> Union[datetime, date]:
     """
     Reverse a date offset by subtracting the original shift.
 

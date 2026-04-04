@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable, Generator, List, Optional
+from typing import Any, Callable, Generator, List
 
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -42,6 +42,7 @@ def get_memory_usage_mb() -> float:
         try:
             import ctypes
             import ctypes.wintypes
+
             class PROCESS_MEMORY_COUNTERS(ctypes.Structure):  # noqa: N801
                 _fields_ = [
                     ("cb", ctypes.wintypes.DWORD),

@@ -11,7 +11,7 @@ Workflow
 6. Save the encrypted workbook.
 7. Generate and save rules.yaml.
 """
-import os
+
 import random
 import string
 from pathlib import Path
@@ -19,7 +19,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
 import openpyxl
-from openpyxl.utils import get_column_letter, column_index_from_string
+from openpyxl.utils import column_index_from_string
+
 
 from .column_analyzer import analyze_workbook_columns
 from .formula_handler import extract_formulas, clear_formula_cells, reinject_formulas
@@ -165,7 +166,10 @@ def encrypt_excel(
     default_encrypted, default_rules = generate_output_paths(input_path)
     if output_path is None:
         output_path = default_encrypted
-    rules_path = str(Path(output_path).parent / (Path(output_path).stem.replace("_encrypted", "") + "_rules.yaml"))
+    rules_path = str(
+        Path(output_path).parent /
+        (Path(output_path).stem.replace("_encrypted", "") + "_rules.yaml")
+    )
 
     # ── 1. Open workbook ────────────────────────────────────────────────────
     wb = openpyxl.load_workbook(src, data_only=False)
@@ -174,7 +178,7 @@ def encrypt_excel(
 
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
-        max_col = ws.max_column or 1
+
         max_row = ws.max_row or 1
         if max_row < 2:
             continue
@@ -203,12 +207,14 @@ def encrypt_excel(
                 elif transform == "scale":
                     cfg["factor"] = _random_factor()
                 elif transform == "shuffle":
-                    unique_vals = list({str(v) for v in meta.get("sample_values", [])})
+
                     # Collect all unique values for full mapping
                     all_vals = set()
                     for row in range(2, max_row + 1):
                         cell = ws.cell(row=row, column=col_idx)
-                        if cell.value is not None and not (isinstance(cell.value, str) and cell.value.startswith("=")):
+                        if cell.value is not None and not (
+                            isinstance(cell.value, str) and cell.value.startswith("=")
+                        ):
                             all_vals.add(cell.value)
                     cfg["mapping"] = _build_shuffle_mapping(list(all_vals))
 

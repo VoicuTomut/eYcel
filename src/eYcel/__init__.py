@@ -1,7 +1,8 @@
 """
 eYcel - Excel Data Anonymization & Encryption Tool
 
-Transform sensitive Excel data into anonymized versions while preserving formulas.
+Transform sensitive Excel data into anonymized versions while
+preserving formulas.
 """
 
 __version__ = "0.2.0"
