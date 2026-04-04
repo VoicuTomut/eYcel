@@ -49,7 +49,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "eYcel=eYcel_cli:main",
+            "eYcel=eYcel.cli:main",
         ],
     },
 )
