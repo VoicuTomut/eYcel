@@ -4,7 +4,7 @@ eYcel - Excel Data Anonymization & Encryption Tool
 Transform sensitive Excel data into anonymized versions while preserving formulas.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Voicu Tomut"
 __license__ = "MIT"
 
