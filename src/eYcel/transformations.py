@@ -1,134 +1,199 @@
 """
-Transformation functions for encrypting and decrypting data.
+Transformation functions for encrypting and decrypting Excel data.
+
+Each forward transform has a matching reverse so that encrypt → decrypt
+produces the original value.  The only *irreversible* transform is `hash`
+(one-way by design) and `anonymize` (random replacement).
 """
 import hashlib
-from typing import Any, Dict
-from datetime import datetime, timedelta
+import random
+import string
+from typing import Any, Dict, Optional, Union
+from datetime import datetime, date, timedelta
 
 
-def transform_hash(value: str, salt: str) -> str:
+# ---------------------------------------------------------------------------
+# Forward transforms (encrypt direction)
+# ---------------------------------------------------------------------------
+
+def transform_hash(value: Any, salt: str) -> str:
     """
-    One-way SHA256 hash transformation.
-    
+    One-way SHA-256 hash of a value with a salt prefix.
+
     Args:
-        value: String to hash
-        salt: Salt for hashing
-        
+        value: Value to hash (converted to string).
+        salt:  Per-column random salt string.
+
     Returns:
-        Hex digest of hashed value
+        12-character hex digest prefix (safe, short, readable).
     """
-    # TODO: Implement SHA256 hashing with salt
-    pass
+    raw = f"{salt}:{value}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def transform_offset_date(date_val: datetime, offset_days: int) -> datetime:
+def transform_offset_date(date_val: Union[datetime, date], offset_days: int) -> Union[datetime, date]:
     """
-    Shift a date by a fixed number of days.
-    
+    Shift a date/datetime by a fixed number of days.
+
     Args:
-        date_val: Original date
-        offset_days: Days to add (can be negative)
-        
+        date_val:    Original date or datetime.
+        offset_days: Days to add (negative = subtract).
+
     Returns:
-        Shifted date
+        Shifted date of the same type.
     """
-    # TODO: Implement date offset
-    pass
+    delta = timedelta(days=offset_days)
+    return date_val + delta
 
 
 def transform_offset_number(num_val: float, offset: float) -> float:
     """
-    Shift a number by a fixed offset.
-    
+    Add a fixed offset to a numeric value.
+
     Args:
-        num_val: Original number
-        offset: Value to add
-        
+        num_val: Original number.
+        offset:  Value to add (can be negative).
+
     Returns:
-        Shifted number
+        Shifted number (float).
     """
-    # TODO: Implement number offset
-    pass
+    return float(num_val) + float(offset)
 
 
 def transform_scale(value: float, factor: float) -> float:
     """
-    Multiply a number by a secret factor.
-    
+    Multiply a numeric value by a secret factor.
+
     Args:
-        value: Original number
-        factor: Multiplication factor
-        
+        value:  Original number.
+        factor: Multiplication factor (must not be 0).
+
     Returns:
-        Scaled number
+        Scaled number (float).
+
+    Raises:
+        ValueError: If factor is zero.
     """
-    # TODO: Implement scaling
-    pass
+    if factor == 0:
+        raise ValueError("Scale factor must not be zero.")
+    return float(value) * float(factor)
 
 
 def transform_shuffle(value: str, mapping: Dict[str, str]) -> str:
     """
-    Rename categories based on a mapping.
-    
+    Rename a category string using a pre-built mapping dictionary.
+
     Args:
-        value: Original category value
-        mapping: Dictionary mapping original to new values
-        
+        value:   Original category string.
+        mapping: Dict mapping original → anonymised label.
+
     Returns:
-        Shuffled value
+        Anonymised label, or the original value if not found in mapping.
     """
-    # TODO: Implement shuffle
-    pass
+    return mapping.get(str(value), str(value))
 
 
 def transform_keep(value: Any) -> Any:
     """
-    Passthrough - no transformation.
-    
+    Pass-through — return value unchanged.
+
     Args:
-        value: Any value
-        
+        value: Any cell value.
+
     Returns:
-        Same value unchanged
+        Identical value.
     """
     return value
 
 
-def transform_anonymize(value: Any, col_type: str) -> Any:
+def transform_anonymize(value: Any, col_type: str, _seed: Optional[int] = None) -> Any:
     """
-    Replace with realistic fake value based on type.
-    
+    Replace a value with a realistic-looking fake of the same type.
+
     Args:
-        value: Original value
-        col_type: Type of column (date, string, number, etc.)
-        
+        value:    Original value (used only to determine length/shape).
+        col_type: One of 'string', 'int', 'float', 'date', 'categorical'.
+        _seed:    Optional RNG seed for deterministic tests.
+
     Returns:
-        Fake value of same type
+        A plausible fake value of the same Python type.
     """
-    # TODO: Implement type-aware anonymization
-    pass
+    rng = random.Random(_seed)
+    if col_type == "int":
+        return rng.randint(1, 99999)
+    if col_type == "float":
+        return round(rng.uniform(0.01, 99999.99), 2)
+    if col_type == "date":
+        base = date(2000, 1, 1)
+        return base + timedelta(days=rng.randint(0, 9000))
+    if col_type in ("string", "categorical"):
+        length = max(4, len(str(value)))
+        return "".join(rng.choices(string.ascii_uppercase, k=length))
+    # fallback
+    return value
 
 
-# Reverse transformations for decryption
-def reverse_offset_date(encrypted_date: datetime, offset_days: int) -> datetime:
-    """Reverse date offset."""
-    # TODO: Implement reverse
-    pass
+# ---------------------------------------------------------------------------
+# Reverse transforms (decrypt direction)
+# ---------------------------------------------------------------------------
+
+def reverse_offset_date(encrypted_date: Union[datetime, date], offset_days: int) -> Union[datetime, date]:
+    """
+    Reverse a date offset by subtracting the original shift.
+
+    Args:
+        encrypted_date: The shifted date.
+        offset_days:    The same offset_days used during encryption.
+
+    Returns:
+        Original date.
+    """
+    return encrypted_date - timedelta(days=offset_days)
 
 
 def reverse_offset_number(encrypted_val: float, offset: float) -> float:
-    """Reverse number offset."""
-    # TODO: Implement reverse
-    pass
+    """
+    Reverse a number offset by subtracting the original shift.
+
+    Args:
+        encrypted_val: The shifted number.
+        offset:        The same offset used during encryption.
+
+    Returns:
+        Original number (float).
+    """
+    return float(encrypted_val) - float(offset)
 
 
 def reverse_scale(encrypted_val: float, factor: float) -> float:
-    """Reverse scaling by dividing."""
-    # TODO: Implement reverse
-    pass
+    """
+    Reverse scaling by dividing.
+
+    Args:
+        encrypted_val: The scaled number.
+        factor:        The same factor used during encryption.
+
+    Returns:
+        Original number (float).
+
+    Raises:
+        ValueError: If factor is zero.
+    """
+    if factor == 0:
+        raise ValueError("Scale factor must not be zero.")
+    return float(encrypted_val) / float(factor)
 
 
 def reverse_shuffle(encrypted_val: str, mapping: Dict[str, str]) -> str:
-    """Reverse shuffle using inverted mapping."""
-    # TODO: Implement reverse
-    pass
+    """
+    Reverse a shuffle by inverting the mapping.
+
+    Args:
+        encrypted_val: The anonymised category label.
+        mapping:       The original original → anonymised mapping.
+
+    Returns:
+        Original category string, or the encrypted value if not found.
+    """
+    inverse = {v: k for k, v in mapping.items()}
+    return inverse.get(str(encrypted_val), str(encrypted_val))
