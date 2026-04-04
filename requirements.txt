@@ -1,0 +1,11 @@
+# Core dependencies
+openpyxl>=3.1.0
+PyYAML>=6.0
+
+# Development dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+memory-profiler>=0.60.0
+
+# Optional CLI enhancements
+tqdm>=4.65.0

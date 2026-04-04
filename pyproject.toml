@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eYcel"
+version = "0.1.0"
+authors = [
+    {name = "Voicu Tomut"},
+]
+description = "Excel Data Anonymization & Encryption Tool"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Spreadsheet",
+    "Topic :: Security :: Cryptography",
+]
+keywords = ["excel", "encryption", "anonymization", "formulas", "data-privacy"]
+dependencies = [
+    "openpyxl>=3.1.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "memory-profiler>=0.60.0",
+]
+cli = [
+    "tqdm>=4.65.0",
+]
+
+[project.scripts]
+eYcel = "eYcel_cli:main"
+
+[project.urls]
+Homepage = "https://github.com/VoicuTomut/eYcel"
+Repository = "https://github.com/VoicuTomut/eYcel"
+Issues = "https://github.com/VoicuTomut/eYcel/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src/eYcel"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
