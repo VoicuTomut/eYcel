@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eYcel"
-version = "0.2.0"
+version = "0.1.0"
 authors = [
     {name = "Voicu Tomut", email = "voicu.tomut@example.com"},
 ]
@@ -33,7 +33,6 @@ keywords = ["excel", "encryption", "anonymization", "formulas", "data-privacy", 
 dependencies = [
     "openpyxl>=3.0",
     "PyYAML>=6.0",
-    "click>=8.0",
 ]
 
 [project.optional-dependencies]
@@ -45,7 +44,7 @@ dev = [
 ]
 
 [project.scripts]
-eyecel = "eYcel_cli:main"
+eYcel = "eYcel.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/VoicuTomut/eYcel"

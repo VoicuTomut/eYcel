@@ -8,10 +8,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - name: Checkout code
@@ -37,7 +38,7 @@ jobs:
 
     - name: Lint with flake8
       run: |
-        flake8 src/ --max-line-length=100 --show-source --statistics
+        flake8 src/ --max-line-length=100 --exclude=__pycache__ --show-source --statistics
 
     - name: Run tests with coverage
       run: |

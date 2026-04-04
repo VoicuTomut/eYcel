@@ -5,9 +5,6 @@ import sys
 import argparse
 from pathlib import Path
 
-# Allow running directly without install
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
 from eYcel.encrypt import encrypt_excel
 from eYcel.decrypt import decrypt_excel
 from eYcel.yaml_handler import load_rules, validate_rules

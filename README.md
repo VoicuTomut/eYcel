@@ -23,7 +23,27 @@ Preserve formulas while anonymizing sensitive data in Excel spreadsheets. Perfec
 
 ---
 
+
 ## 📦 Installation
+
+```bash
+pip install eYcel
+```
+
+> **Note:** PyPI release (`pip install eYcel`) is coming soon. For now, install from source:
+
+### Development Install
+
+```bash
+git clone https://github.com/VoicuTomut/eYcel.git
+cd eYcel
+pip install -e .
+
+# With development dependencies
+pip install -e ".[dev]"
+```
+
+
 
 ```bash
 pip install eYcel
@@ -37,6 +57,8 @@ cd eYcel
 pip install -e ".[dev]"
 ```
 
+> **Note:** PyPI release (`pip install eYcel`) is coming soon.
+
 ---
 
 ## 🚀 Quick Start
@@ -44,14 +66,21 @@ pip install -e ".[dev]"
 ### CLI Usage
 
 ```bash
-# Encrypt an Excel file
-eyecel encrypt -i data.xlsx -o encrypted.xlsx
+# Encrypt
+eYcel encrypt -i sales_data.xlsx -o encrypted.xlsx
+# → produces encrypted.xlsx + sales_data_rules.yaml
 
-# Decrypt using the rules file
-eyecel decrypt -i encrypted.xlsx -r data_rules.yaml -o restored.xlsx
+# Decrypt
+eYcel decrypt -i encrypted.xlsx -r sales_data_rules.yaml -o restored.xlsx
 
-# Validate a rules file
-eyecel validate -r data_rules.yaml
+# Validate rules file
+eYcel validate -r sales_data_rules.yaml
+
+# Verbose output
+eYcel -v encrypt -i sales_data.xlsx -o encrypted.xlsx
+
+# Supply a pre-existing rules file during encryption (batch mode)
+eYcel encrypt -i sales_data.xlsx -o encrypted.xlsx -r existing_rules.yaml
 ```
 
 ### Python API
@@ -59,12 +88,18 @@ eyecel validate -r data_rules.yaml
 ```python
 from eYcel import encrypt_excel, decrypt_excel
 
-# Encrypt
-encrypt_excel("data.xlsx", "encrypted.xlsx")
-# Creates: encrypted.xlsx + data_rules.yaml
+# Encrypt — returns the path to the generated rules file
+rules_path = encrypt_excel("sales_data.xlsx", "encrypted.xlsx")
+# → produces encrypted.xlsx + sales_data_rules.yaml
 
-# Decrypt  
-decrypt_excel("encrypted.xlsx", "data_rules.yaml", "restored.xlsx")
+# Decrypt
+decrypt_excel("encrypted.xlsx", rules_path, "restored.xlsx")
+```
+
+### Streamlit GUI
+```bash
+pip install streamlit
+streamlit run gui/app.py
 ```
 
 ---
@@ -264,17 +299,43 @@ print(f"Formulas preserved: {is_preserved}")
 ```
 eYcel/
 ├── src/eYcel/
-│   ├── __init__.py           # Public API exports
+│   ├── __init__.py           # Package init & public API
+│   ├── cli.py                # CLI entry point (eYcel command)
 │   ├── encrypt.py            # Encryption pipeline
 │   ├── decrypt.py            # Decryption pipeline
-│   ├── column_analyzer.py    # Type detection
-│   ├── transformations.py    # Transform functions
-│   ├── formula_handler.py    # Formula extraction/re-injection
-│   └── yaml_handler.py       # Rules file I/O
-├── tests/                    # 119 tests, 80%+ coverage
-├── examples/                 # Usage examples
-├── eYcel_cli.py             # CLI entry point
-└── pyproject.toml           # Package configuration
+│   ├── formula_handler.py    # Formula preservation logic
+│   ├── column_analyzer.py    # Data type detection
+│   ├── transformations.py    # Hash, offset, scale, shuffle transforms
+│   ├── yaml_handler.py       # Rules file read/write/validation
+│   ├── memory_utils.py       # Memory-efficient processing
+│   └── exceptions.py         # Custom exception classes
+├── tests/
+│   ├── conftest.py           # Shared fixtures
+│   ├── test_cli.py
+│   ├── test_column_analyzer.py
+│   ├── test_decrypt.py
+│   ├── test_encrypt.py
+│   ├── test_formula_handler.py
+│   ├── test_integration.py
+│   ├── test_memory_utils.py
+│   ├── test_transformations.py
+│   └── test_yaml_handler.py
+├── examples/
+│   ├── generate_sample_data.py     # Script to create sample data
+│   ├── process_sample.py           # End-to-end example script
+│   ├── sample_data.xlsx            # Example input file
+│   ├── sample_data_encrypted.xlsx  # Example encrypted output
+│   ├── sample_data_restored.xlsx   # Example decrypted output
+│   └── sample_data_rules.yaml     # Example rules file
+├── gui/
+│   └── app.py                # Streamlit web interface
+├── pyproject.toml            # Build configuration & metadata
+├── setup.py                  # Legacy setup (setuptools)
+├── requirements.txt
+├── LICENSE
+├── MANIFEST.in
+├── .github/                  # CI/CD workflows
+└── ProjectBuildingPlan.md
 ```
 
 ---
@@ -321,7 +382,13 @@ pytest tests/test_transformations.py -v
 - Python 3.9, 3.10, 3.11, or 3.12
 - openpyxl ≥ 3.0
 - PyYAML ≥ 6.0
-- click ≥ 8.0
+
+**Optional:**
+- `streamlit` — for the web GUI (`gui/app.py`)
+- `tqdm` — for CLI progress bars (`pip install eYcel[cli]`)
+- `memory-profiler` — for development profiling (`pip install eYcel[dev]`)
+
+No heavy dependencies. No pandas. Runs on any machine.
 
 ---
 
