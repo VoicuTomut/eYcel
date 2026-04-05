@@ -20,10 +20,10 @@ def cmd_encrypt(args: argparse.Namespace) -> int:
     if not input_path.exists():
         print(f"ERROR: Input file not found: {input_path}", file=sys.stderr)
         return 1
-    if input_path.suffix.lower() not in (".xlsx", ".xls", ".xlsm"):
+    if input_path.suffix.lower() not in (".xlsx", ".xls", ".xlsm", ".csv"):
         print(
             (f"ERROR: Input must be an Excel file "
-             f"(.xlsx/.xls/.xlsm): {input_path}"),
+             f"(.xlsx/.xls/.xlsm/.csv): {input_path}"),
             file=sys.stderr
         )
         return 1
@@ -44,8 +44,8 @@ def cmd_encrypt(args: argparse.Namespace) -> int:
             # if provided
         )
         if not getattr(args, "quiet", False):
-            print(f"✅ Encrypted  → {output_path}")
-            print(f"📄 Rules      → {rules_path}")
+            print(f"[OK] Encrypted  → {output_path}")
+            print(f"[FILE] Rules      → {rules_path}")
         return 0
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -84,7 +84,7 @@ def cmd_decrypt(args: argparse.Namespace) -> int:
             output_path=str(output_path),
         )
         if not getattr(args, "quiet", False):
-            print(f"✅ Decrypted  → {output_path}")
+            print(f"[OK] Decrypted  → {output_path}")
         return 0
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -105,7 +105,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
             if not getattr(args, "quiet", False):
                 cols = rules.get("columns", {})
                 meta = rules.get("metadata", {})
-                print("✅ Rules file is valid")
+                print("[OK] Rules file is valid")
                 print(
                     f"   Source file : "
                     f"{meta.get('original_filename', 'unknown')}"
@@ -116,7 +116,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
                     print(f"   • {col}: {cfg.get('transform', '?')}")
             return 0
         else:
-            print("❌ Rules file is INVALID:", file=sys.stderr)
+            print("[FAIL] Rules file is INVALID:", file=sys.stderr)
             for err in errors:
                 print(f"   • {err}", file=sys.stderr)
             return 1
