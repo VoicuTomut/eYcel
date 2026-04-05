@@ -49,6 +49,7 @@ class TestGetMemoryUsageMbMissingBranches:
                     result = get_memory_usage_mb()
         assert result == 0.0
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="resource module unavailable on Windows")
     def test_darwin_memory_calculation(self):
         """Test macOS memory calculation path."""
         with patch('sys.platform', 'darwin'):
@@ -58,6 +59,7 @@ class TestGetMemoryUsageMbMissingBranches:
         # Expect 1.0 MB (bytes / (1024*1024))
         assert result == 1.0
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="resource module unavailable on Windows")
     def test_linux_memory_calculation(self):
         """Test Linux memory calculation path."""
         with patch('sys.platform', 'linux'):

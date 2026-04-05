@@ -44,8 +44,8 @@ def cmd_encrypt(args: argparse.Namespace) -> int:
             # if provided
         )
         if not getattr(args, "quiet", False):
-            print(f"[OK] Encrypted  → {output_path}")
-            print(f"[FILE] Rules      → {rules_path}")
+            print(f"[OK] Encrypted  -> {output_path}")
+            print(f"[FILE] Rules      -> {rules_path}")
         return 0
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -84,7 +84,7 @@ def cmd_decrypt(args: argparse.Namespace) -> int:
             output_path=str(output_path),
         )
         if not getattr(args, "quiet", False):
-            print(f"[OK] Decrypted  → {output_path}")
+            print(f"[OK] Decrypted  -> {output_path}")
         return 0
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -113,12 +113,12 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 print(f"   Created     : {meta.get('timestamp', 'unknown')}")
                 print(f"   Columns     : {len(cols)}")
                 for col, cfg in cols.items():
-                    print(f"   • {col}: {cfg.get('transform', '?')}")
+                    print(f"   -{col}: {cfg.get('transform', '?')}")
             return 0
         else:
             print("[FAIL] Rules file is INVALID:", file=sys.stderr)
             for err in errors:
-                print(f"   • {err}", file=sys.stderr)
+                print(f"   -{err}", file=sys.stderr)
             return 1
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

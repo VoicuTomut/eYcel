@@ -3,6 +3,7 @@ Tests for memory_utils module.
 """
 from __future__ import annotations
 
+import sys
 import pytest
 import openpyxl
 
@@ -59,11 +60,13 @@ class TestCheckMemoryLimit:
         captured = capsys.readouterr()
         assert captured.err == ""
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="resource module unavailable on Windows")
     def test_warning_when_over_limit(self, capsys):
         check_memory_limit(max_mb=0.0, label="mytest")
         captured = capsys.readouterr()
         assert "WARNING" in captured.err
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="resource module unavailable on Windows")
     def test_label_included_in_warning(self, capsys):
         check_memory_limit(max_mb=0.0, label="phase5")
         captured = capsys.readouterr()
