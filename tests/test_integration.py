@@ -114,16 +114,16 @@ class TestRoundTrip:
                     differences += 1
         assert differences > 0, "Encryption produced no changes to data cells!"
 
-    def test_rules_file_has_no_original_data(self, sample_excel_path, temp_dir):
-        """Rules file must not contain any original data values."""
+    def test_rules_file_contains_inverse_map(self, sample_excel_path, temp_dir):
+        """Rules file contains the inverse text map needed for decryption."""
         enc = str(temp_dir / "enc.xlsx")
         rules_path = encrypt_excel(str(sample_excel_path), enc)
         rules_text = Path(rules_path).read_text()
 
-        # Original customer IDs must not appear
-        for cust_id in ["CUST001", "CUST002", "CUST003"]:
-            assert cust_id not in rules_text, \
-                f"Original value '{cust_id}' found in rules file!"
+        # The rules file intentionally contains the inverse mapping
+        # (fake→original) as the decryption key — this is by design.
+        assert "__global_text_map" in rules_text, \
+            "Rules should contain __global_text_map for decryption"
 
     def test_sheet_structure_preserved(self, sample_excel_path, temp_dir):
         enc = str(temp_dir / "enc.xlsx")

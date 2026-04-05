@@ -90,3 +90,11 @@ temp/
 *.spec
 pip-log.txt
 pip-delete-this-directory.txt
+
+
+Andrei.xls
+
+# ── Rust / WASM ──────────────────────────────────────────────────────────────
+eYcel-wasm/target/
+eYcel-wasm/pkg/
+eYcel-wasm/web/pkg

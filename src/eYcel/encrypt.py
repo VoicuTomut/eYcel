@@ -4,26 +4,30 @@ Excel encryption pipeline.
 Workflow
 --------
 1. Open the workbook (data_only=False so formulas are readable).
-2. Analyse each column to decide the best transformation.
-3. Extract and stash all formula cells.
-4. Apply transformations to data cells column by column.
-5. Re-inject formulas unchanged.
-6. Save the encrypted workbook.
-7. Generate and save rules.yaml.
+2. First pass: collect ALL unique text values to build global substitution map.
+3. For each sheet, extract formulas, transform ALL cells, reinject formulas
+   with text literals updated.
+4. Save the encrypted workbook and rules.yaml.
+
+Default behavior:
+- ALL text (headers, titles, data) → consistent substitution (same word = same fake word)
+- Text inside formulas → also substituted
+- Numbers → kept unchanged (AI needs real values for formulas)
+- Dates → kept unchanged
+- Formulas → structure preserved, text literals inside updated
 """
 
 import random
 import string
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from datetime import datetime, timezone
 
 import openpyxl
-from openpyxl.utils import column_index_from_string
+from openpyxl.utils import get_column_letter
 
 
-from .column_analyzer import analyze_workbook_columns
-from .formula_handler import extract_formulas, clear_formula_cells, reinject_formulas
+from .formula_handler import extract_formulas, clear_formula_cells
 from .transformations import (
     transform_hash,
     transform_offset_date,
@@ -32,6 +36,8 @@ from .transformations import (
     transform_shuffle,
     transform_keep,
     transform_anonymize,
+    build_global_text_map,
+    substitute_text_in_formula,
 )
 from .yaml_handler import generate_rules, save_rules
 
@@ -63,45 +69,44 @@ def _random_day_offset() -> int:
     return random.randint(-365, 365)
 
 
-def _build_shuffle_mapping(unique_values: List[Any]) -> Dict[str, str]:
+def auto_detect_transform(
+    col_values: list, scramble_numbers: bool = False, scramble_dates: bool = False,
+) -> str:
     """
-    Create a deterministic label mapping: each unique value → 'Cat_N'.
+    Recommend a transform type based on cell values.
+
+    New defaults:
+    - string → "substitute" (consistent readable replacement)
+    - int/float → "keep" (unless scramble_numbers=True → "scale")
+    - date → "keep" (unless scramble_dates=True → "offset")
     """
-    return {str(v): f"Cat_{i}" for i, v in enumerate(sorted(set(str(x) for x in unique_values)))}
+    from .column_analyzer import detect_cell_type
 
+    type_counts: Dict[str, int] = {}
+    for v in col_values:
+        if v is None or v == "":
+            continue
+        if isinstance(v, str) and v.startswith("="):
+            continue
+        ctype = detect_cell_type(v)
+        type_counts[ctype] = type_counts.get(ctype, 0) + 1
 
-def auto_detect_transform(col_meta: Dict[str, Any]) -> str:
-    """
-    Recommend a transform type based on column metadata.
+    if not type_counts:
+        return "keep"
 
-    Args:
-        col_meta: Metadata dict from column_analyzer.analyze_column().
+    dominant = max(type_counts, key=type_counts.get)
 
-    Returns:
-        Transform name string.
-    """
-    dtype = col_meta.get("dominant_type", "string")
-    if dtype == "date":
-        return "offset"
-    if dtype in ("int", "float"):
-        return "scale"
-    if dtype == "categorical":
-        return "shuffle"
-    if dtype in ("string",):
-        return "hash"
+    if dominant == "date":
+        return "offset" if scramble_dates else "keep"
+    if dominant in ("int", "float"):
+        return "scale" if scramble_numbers else "keep"
+    if dominant in ("string", "categorical"):
+        return "substitute"
     return "keep"
 
 
 def generate_output_paths(input_path: str) -> Tuple[str, str]:
-    """
-    Generate default output paths based on the input file name.
-
-    Args:
-        input_path: Path to the original Excel file.
-
-    Returns:
-        (encrypted_path, rules_path) as strings.
-    """
+    """Generate default output paths based on the input file name."""
     p = Path(input_path)
     stem = p.stem
     parent = p.parent
@@ -114,8 +119,15 @@ def generate_output_paths(input_path: str) -> Tuple[str, str]:
 # Column-level transform dispatcher
 # ---------------------------------------------------------------------------
 
-def _transform_cell(value: Any, config: Dict[str, Any]) -> Any:
+def _transform_cell(value: Any, config: Dict[str, Any], global_text_map: Dict[str, str]) -> Any:
     """Apply the correct forward transform to a single cell value."""
+    # Text cells are ALWAYS substituted via the global map, regardless of column transform.
+    # This ensures headers, titles, and text in numeric columns all get hidden.
+    if isinstance(value, str) and not value.startswith("="):
+        if value in global_text_map:
+            return global_text_map[value]
+        return value
+
     t = config.get("transform", "keep")
     if t == "hash":
         return transform_hash(value, config["salt"])
@@ -136,28 +148,93 @@ def _transform_cell(value: Any, config: Dict[str, Any]) -> Any:
 # Public API
 # ---------------------------------------------------------------------------
 
+def _load_workbook_any_format(path: Path):
+    """Load .xlsx, .xls, or .csv into an openpyxl Workbook."""
+    suffix = path.suffix.lower()
+
+    if suffix == ".xls":
+        # Convert .xls → openpyxl Workbook via xlrd
+        import xlrd
+        xls = xlrd.open_workbook(str(path))
+        wb = openpyxl.Workbook()
+        # Remove default sheet
+        wb.remove(wb.active)
+        for sheet_idx in range(xls.nsheets):
+            xls_sheet = xls.sheet_by_index(sheet_idx)
+            ws = wb.create_sheet(title=xls_sheet.name)
+            for row in range(xls_sheet.nrows):
+                for col in range(xls_sheet.ncols):
+                    cell = xls_sheet.cell(row, col)
+                    value = cell.value
+                    # xlrd cell types: 0=empty, 1=text, 2=number, 3=date, 4=bool, 5=error, 6=blank
+                    if cell.ctype == 3:  # date
+                        try:
+                            from datetime import datetime as _dt
+                            date_tuple = xlrd.xldate_as_tuple(value, xls.datemode)
+                            value = _dt(*date_tuple)
+                        except Exception:
+                            pass
+                    elif cell.ctype == 4:  # bool
+                        value = bool(value)
+                    elif cell.ctype in (0, 6):  # empty/blank
+                        value = None
+                    ws.cell(row=row + 1, column=col + 1, value=value)
+        return wb
+
+    elif suffix == ".csv":
+        import csv as csv_mod
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = path.stem
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            reader = csv_mod.reader(f)
+            for row_idx, row_data in enumerate(reader, start=1):
+                for col_idx, value in enumerate(row_data, start=1):
+                    # Auto-detect types
+                    v = value.strip()
+                    if v == "":
+                        continue
+                    # Try int
+                    try:
+                        ws.cell(row=row_idx, column=col_idx, value=int(v))
+                        continue
+                    except ValueError:
+                        pass
+                    # Try float
+                    try:
+                        ws.cell(row=row_idx, column=col_idx, value=float(v))
+                        continue
+                    except ValueError:
+                        pass
+                    # String (including formulas starting with =)
+                    ws.cell(row=row_idx, column=col_idx, value=v)
+        return wb
+
+    else:
+        # .xlsx (default)
+        return openpyxl.load_workbook(path, data_only=False)
+
+
 def encrypt_excel(
     input_path: str,
     output_path: Optional[str] = None,
     rules: Optional[Dict[str, Any]] = None,
+    scramble_numbers: bool = False,
+    scramble_dates: bool = False,
 ) -> str:
     """
-    Encrypt an Excel file while preserving all formulas.
+    Encrypt a spreadsheet file (.xlsx, .xls, or .csv).
 
-    Args:
-        input_path:  Path to the source .xlsx file.
-        output_path: Destination path for the encrypted file.
-                     Defaults to '<stem>_encrypted.xlsx' next to the source.
-        rules:       Optional pre-built column config dict mapping column
-                     header (str) → transform config (dict).
-                     If None, transforms are auto-detected.
+    Default behavior:
+    - ALL text → consistent substitution (same word = same fake word everywhere)
+    - Numbers → kept unchanged (set scramble_numbers=True to scale them)
+    - Dates → kept unchanged (set scramble_dates=True to offset them)
+    - Formulas → preserved, text literals inside formulas also substituted
+
+    Supports .xlsx, .xls (via xlrd), and .csv files.
 
     Returns:
         Path to the generated rules YAML file.
-
-    Raises:
-        FileNotFoundError: If *input_path* does not exist.
-        ValueError:        If the file is not a valid .xlsx file.
     """
     src = Path(input_path)
     if not src.exists():
@@ -171,80 +248,100 @@ def encrypt_excel(
         (Path(output_path).stem.replace("_encrypted", "") + "_rules.yaml")
     )
 
-    # ── 1. Open workbook ────────────────────────────────────────────────────
-    wb = openpyxl.load_workbook(src, data_only=False)
+    # ── 1. Open workbook (supports .xlsx, .xls, .csv) ─────────────────────
+    wb = _load_workbook_any_format(src)
 
-    column_configs: Dict[str, Dict[str, Any]] = {}   # header → transform config
+    # ── 2. First pass: collect ALL unique text values for global map ─────────
+    all_texts = []
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value is None or cell.value == "":
+                    continue
+                if isinstance(cell.value, str):
+                    if cell.value.startswith("="):
+                        # Extract text literals from formulas
+                        for literal in _extract_formula_literals(cell.value):
+                            if literal and literal not in all_texts:
+                                all_texts.append(literal)
+                    else:
+                        if cell.value not in all_texts:
+                            all_texts.append(cell.value)
+
+    global_text_map = build_global_text_map(all_texts)
+
+    column_configs: Dict[str, Dict[str, Any]] = {}
 
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
 
         max_row = ws.max_row or 1
-        if max_row < 2:
-            continue
-
-        # ── 2. Analyse columns ───────────────────────────────────────────────
-        col_metadata = analyze_workbook_columns(wb, sheet_name)
+        max_col = ws.max_column or 1
 
         # ── 3. Build per-column transform configs ────────────────────────────
-        sheet_configs: Dict[int, Dict[str, Any]] = {}   # col_idx → config
+        sheet_configs: Dict[int, Dict[str, Any]] = {}
 
-        for col_letter, meta in col_metadata.items():
-            col_idx = column_index_from_string(col_letter)
-            header = str(meta.get("header") or col_letter)
+        for col_idx in range(1, max_col + 1):
+            col_letter = get_column_letter(col_idx)
+            col_key = f"{sheet_name}!{col_letter}"
 
-            if rules and header in rules:
-                cfg = dict(rules[header])
+            # Collect ALL values in this column (all rows)
+            col_values = []
+            for row in range(1, max_row + 1):
+                cell = ws.cell(row=row, column=col_idx)
+                if cell.value is not None and not (
+                    isinstance(cell.value, str) and cell.value.startswith("=")
+                ):
+                    col_values.append(cell.value)
+
+            if rules and col_key in rules:
+                cfg = dict(rules[col_key])
             else:
-                transform = auto_detect_transform(meta)
+                transform = auto_detect_transform(col_values, scramble_numbers, scramble_dates)
                 cfg = {"transform": transform}
 
-                if transform == "hash":
-                    cfg["salt"] = _random_salt()
+                if transform == "scale":
+                    cfg["factor"] = _random_factor()
                 elif transform == "offset":
                     cfg["offset_days"] = _random_day_offset()
                     cfg["offset"] = _random_offset()
-                elif transform == "scale":
-                    cfg["factor"] = _random_factor()
-                elif transform == "shuffle":
 
-                    # Collect all unique values for full mapping
-                    all_vals = set()
-                    for row in range(2, max_row + 1):
-                        cell = ws.cell(row=row, column=col_idx)
-                        if cell.value is not None and not (
-                            isinstance(cell.value, str) and cell.value.startswith("=")
-                        ):
-                            all_vals.add(cell.value)
-                    cfg["mapping"] = _build_shuffle_mapping(list(all_vals))
-
-            column_configs[header] = cfg
+            column_configs[col_key] = cfg
             sheet_configs[col_idx] = cfg
 
         # ── 4. Extract formulas ──────────────────────────────────────────────
         formula_map = extract_formulas(ws)
         clear_formula_cells(ws, formula_map)
 
-        # ── 5. Transform data cells ──────────────────────────────────────────
-        for row in range(2, max_row + 1):
+        # ── 5. Transform ALL cells in ALL rows ───────────────────────────────
+        for row in range(1, max_row + 1):
             for col_idx, cfg in sheet_configs.items():
                 cell = ws.cell(row=row, column=col_idx)
                 if cell.value is None:
                     continue
                 try:
-                    cell.value = _transform_cell(cell.value, cfg)
+                    cell.value = _transform_cell(cell.value, cfg, global_text_map)
                 except Exception:
-                    # If transform fails (e.g., wrong type), keep original
                     pass
 
-        # ── 6. Re-inject formulas ────────────────────────────────────────────
-        reinject_formulas(ws, formula_map)
+        # ── 6. Reinject formulas with text substitutions ─────────────────────
+        for (row, col), formula in formula_map.items():
+            updated = substitute_text_in_formula(formula, global_text_map)
+            ws.cell(row=row, column=col).value = updated
 
     # ── 7. Save encrypted workbook ───────────────────────────────────────────
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
 
-    # ── 8. Generate and save rules ───────────────────────────────────────────
+    # ── 8. Store global inverse text map in rules ────────────────────────────
+    inverse_map = {v: k for k, v in global_text_map.items()}
+    column_configs["__global_text_map"] = {
+        "transform": "substitute",
+        "mapping": inverse_map,
+    }
+
+    # ── 9. Generate and save rules ───────────────────────────────────────────
     metadata = {
         "original_filename": src.name,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -254,3 +351,23 @@ def encrypt_excel(
     save_rules(rules_dict, rules_path)
 
     return rules_path
+
+
+def _extract_formula_literals(formula: str) -> list:
+    """Extract all string literals (text between double quotes) from a formula."""
+    literals = []
+    i = 0
+    chars = list(formula)
+    while i < len(chars):
+        if chars[i] == '"':
+            i += 1
+            start = i
+            while i < len(chars) and chars[i] != '"':
+                i += 1
+            literal = "".join(chars[start:i])
+            if literal:
+                literals.append(literal)
+            i += 1
+        else:
+            i += 1
+    return literals

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eYcel — Encrypt Excel &amp; CSV in Your Browser</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>eYcel <span class="lock-icon">&#128274;</span></h1>
+        <p class="tagline">Encrypt your Excel &amp; CSV data before sharing with AI</p>
+        <div class="privacy-banner">
+            <span class="shield">&#128737;</span>
+            Your data never leaves your browser. Everything runs locally via WebAssembly.
+        </div>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab active" data-tab="encrypt">Encrypt</button>
+        <button class="tab" data-tab="decrypt">Decrypt</button>
+        <button class="tab" data-tab="validate">Validate Rules</button>
+    </nav>
+
+    <main>
+        <!-- ==================== ENCRYPT TAB ==================== -->
+        <section id="tab-encrypt" class="tab-content active">
+            <div class="drop-zone" id="encrypt-drop">
+                <div class="drop-icon">&#128196;</div>
+                <p>Drop your <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong> file here</p>
+                <p class="hint">or click to browse</p>
+                <input type="file" id="encrypt-file" accept=".xlsx,.xls,.csv" hidden>
+            </div>
+            <div class="options">
+                <label><input type="checkbox" id="scramble-numbers"> Also scramble numbers (reversible)</label>
+                <label><input type="checkbox" id="scramble-dates"> Also scramble dates (reversible)</label>
+            </div>
+            <div id="encrypt-status" class="status" hidden></div>
+            <div id="encrypt-results" hidden>
+                <h3>Encryption Complete</h3>
+                <div class="result-stats" id="encrypt-stats"></div>
+                <div class="download-buttons">
+                    <button id="dl-encrypted" class="btn btn-primary">
+                        &#11015; Download Encrypted File
+                    </button>
+                    <button id="dl-rules" class="btn btn-secondary">
+                        &#11015; Download Rules (keep secret!)
+                    </button>
+                </div>
+                <p class="warning">
+                    &#9888; Keep the rules file safe! You need it to decrypt your data.
+                    Never share it with anyone.
+                </p>
+            </div>
+        </section>
+
+        <!-- ==================== DECRYPT TAB ==================== -->
+        <section id="tab-decrypt" class="tab-content">
+            <div class="two-col">
+                <div>
+                    <h3>Encrypted File</h3>
+                    <div class="drop-zone small" id="decrypt-drop-file">
+                        <div class="drop-icon">&#128196;</div>
+                        <p>Drop encrypted <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong></p>
+                        <input type="file" id="decrypt-file" accept=".xlsx,.xls,.csv" hidden>
+                    </div>
+                </div>
+                <div>
+                    <h3>Rules File</h3>
+                    <div class="drop-zone small" id="decrypt-drop-rules">
+                        <div class="drop-icon">&#128221;</div>
+                        <p>Drop <strong>.yaml</strong> rules file</p>
+                        <input type="file" id="decrypt-rules" accept=".yaml,.yml" hidden>
+                    </div>
+                </div>
+            </div>
+            <div id="decrypt-status" class="status" hidden></div>
+            <button id="btn-decrypt" class="btn btn-primary" disabled>
+                Decrypt
+            </button>
+            <div id="decrypt-results" hidden>
+                <h3>Decryption Complete</h3>
+                <div class="download-buttons">
+                    <button id="dl-decrypted" class="btn btn-primary">
+                        &#11015; Download as .xlsx
+                    </button>
+                    <button id="dl-decrypted-csv" class="btn btn-secondary">
+                        &#11015; Download as .csv
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VALIDATE TAB ==================== -->
+        <section id="tab-validate" class="tab-content">
+            <div class="drop-zone small" id="validate-drop">
+                <div class="drop-icon">&#128221;</div>
+                <p>Drop a <strong>.yaml</strong> rules file to validate</p>
+                <input type="file" id="validate-file" accept=".yaml,.yml" hidden>
+            </div>
+            <div id="validate-status" class="status" hidden></div>
+            <div id="validate-results" hidden></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>
+            <a href="https://github.com/VoicuTomut/eYcel" target="_blank">GitHub</a>
+            &middot; MIT License &middot; No data ever leaves your browser
+        </p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

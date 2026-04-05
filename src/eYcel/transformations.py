@@ -139,6 +139,72 @@ def transform_anonymize(value: Any, col_type: str, _seed: Optional[int] = None) 
 # Reverse transforms (decrypt direction)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Consistent text substitution
+# ---------------------------------------------------------------------------
+
+SYLLABLES = [
+    "ba", "be", "bi", "bo", "bu", "da", "de", "di", "do", "du",
+    "fa", "fe", "fi", "fo", "fu", "ga", "ge", "gi", "go", "gu",
+    "ka", "ke", "ki", "ko", "ku", "la", "le", "li", "lo", "lu",
+    "ma", "me", "mi", "mo", "mu", "na", "ne", "ni", "no", "nu",
+    "pa", "pe", "pi", "po", "pu", "ra", "re", "ri", "ro", "ru",
+    "sa", "se", "si", "so", "su", "ta", "te", "ti", "to", "tu",
+    "va", "ve", "vi", "vo", "vu", "za", "ze", "zi", "zo", "zu",
+]
+
+
+def fake_word_from_index(index: int) -> str:
+    """Generate a readable fake word from an index."""
+    base = len(SYLLABLES)
+    s1 = index % base
+    s2 = (index // base) % base
+    word = SYLLABLES[s1].capitalize() + SYLLABLES[s2]
+    tier = index // (base * base)
+    if tier > 0:
+        word += str(tier)
+    return word
+
+
+def build_global_text_map(unique_texts: list) -> Dict[str, str]:
+    """Build a global text substitution map. Same text → same fake word."""
+    sorted_texts = sorted(set(str(t) for t in unique_texts if t))
+    return {orig: fake_word_from_index(i) for i, orig in enumerate(sorted_texts)}
+
+
+def substitute_text_in_formula(formula: str, text_map: Dict[str, str]) -> str:
+    """Replace text literals inside a formula using the text map."""
+    result = []
+    i = 0
+    chars = list(formula)
+    while i < len(chars):
+        if chars[i] == '"':
+            start = i + 1
+            i += 1
+            while i < len(chars) and chars[i] != '"':
+                i += 1
+            literal = "".join(chars[start:i])
+            replacement = text_map.get(literal, literal)
+            result.append('"')
+            result.append(replacement)
+            result.append('"')
+            if i < len(chars):
+                i += 1
+        else:
+            result.append(chars[i])
+            i += 1
+    return "".join(result)
+
+
+def reverse_text_in_formula(formula: str, inverse_map: Dict[str, str]) -> str:
+    """Reverse text substitutions inside a formula."""
+    return substitute_text_in_formula(formula, inverse_map)
+
+
+# ---------------------------------------------------------------------------
+# Reverse transforms (decrypt direction)
+# ---------------------------------------------------------------------------
+
 def reverse_offset_date(
     encrypted_date: Union[datetime, date], offset_days: int
 ) -> Union[datetime, date]:

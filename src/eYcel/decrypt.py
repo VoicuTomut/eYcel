@@ -5,24 +5,26 @@ Workflow
 --------
 1. Load and validate rules.yaml.
 2. Open the encrypted workbook (data_only=False).
-3. For each sheet, extract any formula cells (preserve them).
-4. Reverse-transform data cells column by column.
-5. Re-inject formulas.
-6. Save the restored workbook.
+3. Extract the global inverse text map (fake→original).
+4. For each sheet, extract formulas, reverse-transform ALL cells,
+   reinject formulas with text literals reversed.
+5. Save the restored workbook.
 """
 from pathlib import Path
 from typing import Any, Dict, List
 
 import openpyxl
+from openpyxl.utils import get_column_letter
 
 
-from .formula_handler import extract_formulas, clear_formula_cells, reinject_formulas
+from .formula_handler import extract_formulas, clear_formula_cells
 from .transformations import (
     reverse_offset_date,
     reverse_offset_number,
     reverse_scale,
     reverse_shuffle,
     transform_keep,
+    reverse_text_in_formula,
 )
 from .yaml_handler import load_rules
 
@@ -31,16 +33,21 @@ from .yaml_handler import load_rules
 # Reverse transform dispatcher
 # ---------------------------------------------------------------------------
 
-def _reverse_cell(value: Any, config: Dict[str, Any]) -> Any:
+def _reverse_cell(value: Any, config: Dict[str, Any], inverse_text_map: Dict[str, str]) -> Any:
     """Apply the correct reverse transform to a single cell value."""
+    # Text cells that exist in the global inverse map are always reversed,
+    # regardless of column transform. This restores headers, titles, etc.
+    if isinstance(value, str) and not value.startswith("="):
+        if value in inverse_text_map:
+            return inverse_text_map[value]
+
     t = config.get("transform", "keep")
 
     if t == "hash":
-        # Hash is one-way — cannot reverse; leave the hashed value
-        return value
+        return value  # one-way
 
     if t == "offset":
-        if hasattr(value, "year"):          # date / datetime
+        if hasattr(value, "year"):
             return reverse_offset_date(value, config.get("offset_days", 0))
         return reverse_offset_number(float(value), config.get("offset", 0.0))
 
@@ -57,63 +64,22 @@ def _reverse_cell(value: Any, config: Dict[str, Any]) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Column header → column index lookup
-# ---------------------------------------------------------------------------
-
-def _build_header_map(worksheet) -> Dict[str, int]:
-    """
-    Read row 1 and return a dict mapping header string → column index.
-
-    Args:
-        worksheet: openpyxl Worksheet.
-
-    Returns:
-        {header_string: col_index, …}
-    """
-    mapping: Dict[str, int] = {}
-    for cell in worksheet[1]:
-        if cell.value is not None:
-            mapping[str(cell.value)] = cell.column
-    return mapping
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 def load_and_validate_rules(rules_path: str) -> Dict[str, Any]:
-    """
-    Load a rules YAML file and raise on invalid content.
-
-    Args:
-        rules_path: Path to the rules .yaml file.
-
-    Returns:
-        Validated rules dictionary.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError:        If the schema is invalid.
-    """
-    return load_rules(rules_path)   # load_rules already validates
+    """Load a rules YAML file and raise on invalid content."""
+    return load_rules(rules_path)
 
 
 def apply_reverse_transform(
     column_data: List[Any],
     transform_config: Dict[str, Any],
 ) -> List[Any]:
-    """
-    Apply a reverse transform to an entire column's data list.
-
-    Args:
-        column_data:      List of encrypted cell values.
-        transform_config: Transform config dict from rules.
-
-    Returns:
-        List of restored values (same length, same order).
-    """
+    """Apply a reverse transform to an entire column's data list."""
+    inverse = {}  # no global map needed for this legacy API
     return [
-        _reverse_cell(v, transform_config) if v is not None else v
+        _reverse_cell(v, transform_config, inverse) if v is not None else v
         for v in column_data
     ]
 
@@ -126,20 +92,17 @@ def decrypt_excel(
     """
     Restore an encrypted Excel file to its original values.
 
-    Args:
-        encrypted_path: Path to the encrypted .xlsx file.
-        rules_path:     Path to the matching rules .yaml file.
-        output_path:    Destination path for the restored file.
-
-    Raises:
-        FileNotFoundError: If either input file does not exist.
-        ValueError:        If rules validation fails.
+    Handles the global text substitution map for consistent reversal.
     """
     # ── 1. Load & validate rules ─────────────────────────────────────────────
     rules = load_and_validate_rules(rules_path)
     column_configs: Dict[str, Dict[str, Any]] = rules.get("columns", {})
 
-    # ── 2. Open encrypted workbook ───────────────────────────────────────────
+    # ── 2. Extract global inverse text map ───────────────────────────────────
+    global_entry = column_configs.get("__global_text_map", {})
+    inverse_text_map: Dict[str, str] = global_entry.get("mapping", {})
+
+    # ── 3. Open encrypted workbook ───────────────────────────────────────────
     src = Path(encrypted_path)
     if not src.exists():
         raise FileNotFoundError(f"Encrypted file not found: {encrypted_path}")
@@ -149,34 +112,40 @@ def decrypt_excel(
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         max_row = ws.max_row or 1
-        if max_row < 2:
+        max_col = ws.max_column or 1
+
+        if max_row < 1:
             continue
 
-        # Map column headers to column indices
-        header_map = _build_header_map(ws)
-
-        # ── 3. Extract formulas ──────────────────────────────────────────────
+        # ── 4. Extract formulas ──────────────────────────────────────────────
         formula_map = extract_formulas(ws)
         clear_formula_cells(ws, formula_map)
 
-        # ── 4. Reverse-transform data cells ──────────────────────────────────
-        for header, cfg in column_configs.items():
-            col_idx = header_map.get(header)
-            if col_idx is None:
-                continue  # column not in this sheet — skip silently
+        # ── 5. Reverse-transform ALL cells ───────────────────────────────────
+        for col_idx in range(1, max_col + 1):
+            col_letter = get_column_letter(col_idx)
+            col_key = f"{sheet_name}!{col_letter}"
 
-            for row in range(2, max_row + 1):
+            cfg = column_configs.get(col_key)
+            if cfg is None:
+                continue
+            if cfg.get("transform") == "substitute" and col_key == "__global_text_map":
+                continue
+
+            for row in range(1, max_row + 1):
                 cell = ws.cell(row=row, column=col_idx)
                 if cell.value is None:
                     continue
                 try:
-                    cell.value = _reverse_cell(cell.value, cfg)
+                    cell.value = _reverse_cell(cell.value, cfg, inverse_text_map)
                 except Exception:
-                    pass  # Leave value as-is on failure
+                    pass
 
-        # ── 5. Re-inject formulas ────────────────────────────────────────────
-        reinject_formulas(ws, formula_map)
+        # ── 6. Reinject formulas with text reversed ──────────────────────────
+        for (row, col), formula in formula_map.items():
+            restored = reverse_text_in_formula(formula, inverse_text_map)
+            ws.cell(row=row, column=col).value = restored
 
-    # ── 6. Save restored workbook ────────────────────────────────────────────
+    # ── 7. Save restored workbook ────────────────────────────────────────────
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)

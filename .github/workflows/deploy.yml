@@ -1,0 +1,71 @@
+name: Deploy Web App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            eYcel-wasm/target/
+          key: cargo-${{ hashFiles('eYcel-wasm/Cargo.lock') }}
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack || true
+
+      - name: Build WASM
+        working-directory: eYcel-wasm
+        run: wasm-pack build --target web --release
+
+      - name: Run Rust tests
+        working-directory: eYcel-wasm
+        run: cargo test
+
+      - name: Prepare deploy directory
+        run: |
+          mkdir -p _site
+          cp eYcel-wasm/web/index.html _site/
+          cp eYcel-wasm/web/style.css _site/
+          cp eYcel-wasm/web/app.js _site/
+          mkdir -p _site/pkg
+          cp eYcel-wasm/pkg/eycel_wasm_bg.wasm _site/pkg/
+          cp eYcel-wasm/pkg/eycel_wasm.js _site/pkg/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

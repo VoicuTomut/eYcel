@@ -33,6 +33,7 @@ keywords = ["excel", "encryption", "anonymization", "formulas", "data-privacy", 
 dependencies = [
     "openpyxl>=3.0",
     "PyYAML>=6.0",
+    "xlrd>=2.0",
 ]
 
 [project.optional-dependencies]

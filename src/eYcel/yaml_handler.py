@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 import yaml
 
 # Valid transform names
-VALID_TRANSFORMS = {"hash", "offset", "scale", "shuffle", "keep", "anonymize"}
+VALID_TRANSFORMS = {"hash", "offset", "scale", "shuffle", "keep", "anonymize", "substitute"}
 
 
 # ---------------------------------------------------------------------------

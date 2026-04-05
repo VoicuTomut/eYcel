@@ -27,29 +27,35 @@ class TestGenerateOutputPaths:
 
 
 class TestAutoDetectTransform:
-    def test_date_column(self):
-        meta = {"dominant_type": "date"}
-        assert auto_detect_transform(meta) == "offset"
+    def test_date_column_default_keeps(self):
+        from datetime import date
+        values = [date(2024, 1, 1), date(2024, 6, 15)]
+        assert auto_detect_transform(values) == "keep"
 
-    def test_float_column(self):
-        meta = {"dominant_type": "float"}
-        assert auto_detect_transform(meta) == "scale"
+    def test_date_column_scramble(self):
+        from datetime import date
+        values = [date(2024, 1, 1), date(2024, 6, 15)]
+        assert auto_detect_transform(values, scramble_dates=True) == "offset"
 
-    def test_int_column(self):
-        meta = {"dominant_type": "int"}
-        assert auto_detect_transform(meta) == "scale"
+    def test_float_column_default_keeps(self):
+        values = [1.5, 2.7, 3.9]
+        assert auto_detect_transform(values) == "keep"
 
-    def test_categorical_column(self):
-        meta = {"dominant_type": "categorical"}
-        assert auto_detect_transform(meta) == "shuffle"
+    def test_float_column_scramble(self):
+        values = [1.5, 2.7, 3.9]
+        assert auto_detect_transform(values, scramble_numbers=True) == "scale"
+
+    def test_int_column_default_keeps(self):
+        values = [1, 2, 3]
+        assert auto_detect_transform(values) == "keep"
 
     def test_string_column(self):
-        meta = {"dominant_type": "string"}
-        assert auto_detect_transform(meta) == "hash"
+        values = ["Alice", "Bob", "Carol"]
+        assert auto_detect_transform(values) == "substitute"
 
-    def test_unknown_type_keeps(self):
-        meta = {"dominant_type": "empty"}
-        assert auto_detect_transform(meta) == "keep"
+    def test_empty_keeps(self):
+        values = [None, "", None]
+        assert auto_detect_transform(values) == "keep"
 
 
 class TestEncryptExcel:
@@ -75,24 +81,38 @@ class TestEncryptExcel:
             if orig_val and str(orig_val).startswith("="):
                 assert enc_val == orig_val, f"Formula at row {row} changed!"
 
-    def test_data_values_changed(self, sample_excel_path, temp_dir):
+    def test_text_values_changed(self, sample_excel_path, temp_dir):
         out = str(temp_dir / "enc.xlsx")
         encrypt_excel(str(sample_excel_path), out)
         wb_orig = openpyxl.load_workbook(str(sample_excel_path), data_only=False)
         wb_enc = openpyxl.load_workbook(out, data_only=False)
-        # At least one data value in col B (amount) should differ
+        # Text values in col A (names) should be substituted
+        orig_vals = [wb_orig.active.cell(row=r, column=1).value for r in range(2, 7)]
+        enc_vals  = [wb_enc.active.cell(row=r, column=1).value  for r in range(2, 7)]
+        assert orig_vals != enc_vals, "Text values should be substituted"
+
+    def test_numbers_kept_by_default(self, sample_excel_path, temp_dir):
+        out = str(temp_dir / "enc.xlsx")
+        encrypt_excel(str(sample_excel_path), out)
+        wb_orig = openpyxl.load_workbook(str(sample_excel_path), data_only=False)
+        wb_enc = openpyxl.load_workbook(out, data_only=False)
+        # Numbers in col B (amount) should be kept unchanged by default
         orig_vals = [wb_orig.active.cell(row=r, column=2).value for r in range(2, 7)]
         enc_vals  = [wb_enc.active.cell(row=r, column=2).value  for r in range(2, 7)]
-        assert orig_vals != enc_vals
+        assert orig_vals == enc_vals, "Numbers should be kept unchanged by default"
 
     def test_missing_input_raises(self, temp_dir):
         with pytest.raises(FileNotFoundError):
             encrypt_excel(str(temp_dir / "no_such_file.xlsx"), str(temp_dir / "out.xlsx"))
 
-    def test_headers_preserved(self, sample_excel_path, temp_dir):
+    def test_headers_substituted(self, sample_excel_path, temp_dir):
+        """Headers are now substituted too (hides column meaning)."""
         out = str(temp_dir / "enc.xlsx")
         encrypt_excel(str(sample_excel_path), out)
         wb = openpyxl.load_workbook(out)
         ws = wb.active
-        assert ws["A1"].value == "customer_id"
-        assert ws["B1"].value == "amount"
+        # Headers should be substituted (NOT the original text)
+        assert ws["A1"].value != "customer_id", "Header should be substituted"
+        assert ws["B1"].value != "amount", "Header should be substituted"
+        # But they should be non-empty strings
+        assert isinstance(ws["A1"].value, str) and len(ws["A1"].value) > 0
