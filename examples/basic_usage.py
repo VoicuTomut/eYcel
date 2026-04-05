@@ -9,10 +9,13 @@ This example demonstrates:
 4. Verifying the round-trip worked correctly
 """
 import os
+import sys
 import tempfile
 from pathlib import Path
 
-# Import eYcel functionality
+# Add parent directory to path so examples work without installation
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
 from eYcel import encrypt_excel, decrypt_excel
 from eYcel.formula_handler import verify_formulas_preserved
 

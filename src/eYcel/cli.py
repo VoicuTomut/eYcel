@@ -5,9 +5,9 @@ import sys
 import argparse
 from pathlib import Path
 
-from eYcel.encrypt import encrypt_excel
-from eYcel.decrypt import decrypt_excel
-from eYcel.yaml_handler import load_rules, validate_rules
+from .encrypt import encrypt_excel
+from .decrypt import decrypt_excel
+from .yaml_handler import load_rules, validate_rules
 
 
 # ---------------------------------------------------------------------------
